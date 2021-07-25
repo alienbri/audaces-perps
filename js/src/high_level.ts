@@ -1,5 +1,5 @@
 // More user friendly than the ones in bindings.ts and secondary_bindings.ts
-import { Connection, PublicKey, Keypair } from "@solana/web3.js";
+import { Connection, PublicKey, Keypair } from '@solana/web3.js'
 import {
   addBudget,
   PrimedTransaction,
@@ -7,41 +7,41 @@ import {
   closePosition,
   increasePosition,
   openPosition,
-} from "./bindings";
+} from './bindings'
 import {
   findAssociatedTokenAddress,
   signAndSendTransactionInstructions,
   createAssociatedTokenAccount,
   Numberu64,
-} from "./utils";
+} from './utils'
 import {
   extractTradeInfoFromTransaction,
   getMarketState,
   getUserAccountsForOwner,
   getPastTrades,
   getOrders,
-} from "./secondary_bindings";
-import { PositionType } from "./instructions";
-import { UserAccount } from "./state";
-import { Position } from "./types";
+} from './secondary_bindings'
+import { PositionType } from './instructions'
+import { UserAccount } from './state'
+import { Position } from './types'
 
-const Cache = new Map<string, PublicKey>();
+const Cache = new Map<string, PublicKey>()
 
 enum Env {
-  dev = "dev",
-  prod = "prod",
+  dev = 'dev',
+  prod = 'prod',
 }
 
 export const BNB_ADDRESS = new PublicKey(
-  "4qZA7RixzEgQ53cc6ittMeUtkaXgCnjZYkP8L1nxFD25"
-);
+  '4qZA7RixzEgQ53cc6ittMeUtkaXgCnjZYkP8L1nxFD25',
+)
 
 // Assumes the wallet used for trading has an associated token account for USDC
 // If it's not the case run the following initWallet function
-const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
 
 // FIDA token mint
-const FIDA_MINT = new PublicKey("EchesyfXePKdLtoiZSL8pBe8Myagyy8ZRqsACNCFGnvp");
+const FIDA_MINT = new PublicKey('EchesyfXePKdLtoiZSL8pBe8Myagyy8ZRqsACNCFGnvp')
 
 /**
  * Creates an associated USDC account for a wallet.
@@ -54,13 +54,13 @@ export const initWallet = async (connection: Connection, wallet: Keypair) => {
   const instruction = await createAssociatedTokenAccount(
     wallet.publicKey,
     wallet.publicKey,
-    USDC_MINT
-  );
+    USDC_MINT,
+  )
   const tx = await signAndSendTransactionInstructions(connection, [], wallet, [
     instruction,
-  ]);
-  return tx;
-};
+  ])
+  return tx
+}
 
 /**
  * Returns the USDC associated token account of a wallet.
@@ -70,18 +70,18 @@ export const initWallet = async (connection: Connection, wallet: Keypair) => {
  * @returns The public key of the USDC associated token account of the wallet.
  */
 export const getQuoteAccount = async (
-  wallet: PublicKey
+  wallet: PublicKey,
 ): Promise<PublicKey> => {
-  if (!Cache.get("quoteAccount")) {
+  if (!Cache.get('quoteAccount')) {
     const associatedUSDCAccount = await findAssociatedTokenAddress(
       wallet,
-      USDC_MINT
-    );
-    Cache.set("quoteAccount", associatedUSDCAccount);
+      USDC_MINT,
+    )
+    Cache.set('quoteAccount', associatedUSDCAccount)
   }
   // @ts-ignore
-  return Cache.get("quoteAccount");
-};
+  return Cache.get('quoteAccount')
+}
 
 /**
  * Returns the FIDA associated token account of a wallet.
@@ -93,22 +93,22 @@ export const getQuoteAccount = async (
 export const getDiscountAccount = async (
   connection: Connection,
   wallet: PublicKey,
-  env = Env.prod
+  env = Env.prod,
 ) => {
   if (env === Env.dev) {
-    return undefined;
+    return undefined
   }
-  if (!Cache.has("discountAccount")) {
+  if (!Cache.has('discountAccount')) {
     const associatedFidaAccount = await findAssociatedTokenAddress(
       wallet,
-      FIDA_MINT
-    );
-    const accountInfo = await connection.getAccountInfo(associatedFidaAccount);
-    if (!accountInfo?.data) return undefined;
-    Cache.set("discountAccount", associatedFidaAccount);
+      FIDA_MINT,
+    )
+    const accountInfo = await connection.getAccountInfo(associatedFidaAccount)
+    if (!accountInfo?.data) return undefined
+    Cache.set('discountAccount', associatedFidaAccount)
   }
-  return Cache.get("discountAccount");
-};
+  return Cache.get('discountAccount')
+}
 
 /**
  * Creates the user account i.e the intermediary account that will hold the collateral.
@@ -121,19 +121,19 @@ export const getDiscountAccount = async (
 export const createUserAccount = async (
   connection: Connection,
   marketAddress: PublicKey,
-  wallet: PublicKey
+  wallet: PublicKey,
 ): Promise<PrimedTransaction> => {
-  const quoteAccount = await getQuoteAccount(wallet);
+  const quoteAccount = await getQuoteAccount(wallet)
   const primedTx = await addBudget(
     connection,
     marketAddress,
     0,
     wallet,
     quoteAccount,
-    wallet
-  );
-  return primedTx;
-};
+    wallet,
+  )
+  return primedTx
+}
 
 /**
  * Deposit collateral (USDC) from a wallet into a user account. This does not affect directly the collateral of your positions.
@@ -150,26 +150,26 @@ export const depositCollateral = async (
   marketAddress: PublicKey,
   amount: number,
   wallet: PublicKey,
-  userAccount: PublicKey
+  userAccount: PublicKey,
 ): Promise<PrimedTransaction> => {
   // Safety checks
   if (amount <= 0) {
-    throw new Error("Invalid amount to withdraw, needs to be > 0");
+    throw new Error('Invalid amount to withdraw, needs to be > 0')
   }
-  const allUserAccounts = await getUserAccountsForOwner(connection, wallet);
+  const allUserAccounts = await getUserAccountsForOwner(connection, wallet)
   if (!allUserAccounts) {
-    throw new Error("No user account found for owner");
+    throw new Error('No user account found for owner')
   }
   const userAccountExists = allUserAccounts.find((acc) =>
-    acc?.market.equals(marketAddress)
-  );
+    acc?.market.equals(marketAddress),
+  )
   if (!userAccountExists) {
     throw new Error(
-      `User account ${userAccount.toBase58()} market is not ${marketAddress.toBase58()}`
-    );
+      `User account ${userAccount.toBase58()} market is not ${marketAddress.toBase58()}`,
+    )
   }
 
-  const quoteAccount = await getQuoteAccount(wallet);
+  const quoteAccount = await getQuoteAccount(wallet)
   const primedTx = await addBudget(
     connection,
     marketAddress,
@@ -177,10 +177,10 @@ export const depositCollateral = async (
     wallet,
     quoteAccount,
     wallet,
-    userAccount
-  );
-  return primedTx;
-};
+    userAccount,
+  )
+  return primedTx
+}
 
 /**
  * Withdraw collateral (USDC) from a user account and deposit it into a wallet. This does not affect directly the collateral of your positions.
@@ -197,35 +197,35 @@ export const withdrawCollateral = async (
   marketAddress: PublicKey,
   amount: number,
   wallet: PublicKey,
-  userAccount: PublicKey
+  userAccount: PublicKey,
 ): Promise<PrimedTransaction> => {
   // Safety checks
   if (amount <= 0) {
-    throw new Error("Invalid amount to withdraw, needs to be > 0");
+    throw new Error('Invalid amount to withdraw, needs to be > 0')
   }
-  const allUserAccounts = await getUserAccountsForOwner(connection, wallet);
+  const allUserAccounts = await getUserAccountsForOwner(connection, wallet)
   if (!allUserAccounts) {
-    throw new Error("No user account found for owner");
+    throw new Error('No user account found for owner')
   }
   const userAccountExists = allUserAccounts.find((acc) =>
-    acc?.market.equals(marketAddress)
-  );
+    acc?.market.equals(marketAddress),
+  )
   if (!userAccountExists) {
     throw new Error(
-      `User account ${userAccount.toBase58()} market is not ${marketAddress.toBase58()}`
-    );
+      `User account ${userAccount.toBase58()} market is not ${marketAddress.toBase58()}`,
+    )
   }
-  const quoteAccount = await getQuoteAccount(wallet);
+  const quoteAccount = await getQuoteAccount(wallet)
   const primedTx = await withdrawBudget(
     connection,
     marketAddress,
     amount,
     quoteAccount,
     wallet,
-    userAccount
-  );
-  return primedTx;
-};
+    userAccount,
+  )
+  return primedTx
+}
 
 /**
  * Opens a position for a user account.
@@ -245,13 +245,13 @@ export const createPosition = async (
   quoteSize: number,
   leverage: number,
   userAccount: UserAccount,
-  referrerAccount: PublicKey | undefined = undefined
+  referrerAccount: PublicKey | undefined = undefined,
 ): Promise<PrimedTransaction> => {
-  const collateral = quoteSize / leverage;
+  const collateral = quoteSize / leverage
   const discountAccount = await getDiscountAccount(
     connection,
-    userAccount.owner
-  );
+    userAccount.owner,
+  )
   const primedTx = await openPosition(
     connection,
     side,
@@ -263,10 +263,10 @@ export const createPosition = async (
     discountAccount,
     userAccount.owner,
     referrerAccount,
-    BNB_ADDRESS
-  );
-  return primedTx;
-};
+    BNB_ADDRESS,
+  )
+  return primedTx
+}
 
 /**
  * Increases the base size of a position. This will increase the leverage of your position.
@@ -283,14 +283,14 @@ export const increasePositionBaseSize = async (
   position: Position,
   size: number,
   wallet: PublicKey,
-  referrerAccount: PublicKey | undefined = undefined
+  referrerAccount: PublicKey | undefined = undefined,
 ): Promise<PrimedTransaction> => {
-  const marketState = await getMarketState(connection, position.marketAddress);
-  const markPrice = marketState.getMarkPrice();
+  const marketState = await getMarketState(connection, position.marketAddress)
+  const markPrice = marketState.getMarkPrice()
   const targetLeverage =
-    (markPrice * (size + position.vCoinAmount)) / position.collateral;
-  const amountToWithdraw = (size * markPrice) / targetLeverage;
-  const discountAccount = await getDiscountAccount(connection, wallet);
+    (markPrice * (size + position.vCoinAmount)) / position.collateral
+  const amountToWithdraw = (size * markPrice) / targetLeverage
+  const discountAccount = await getDiscountAccount(connection, wallet)
   const [signersClose, instructionsClose] = await closePosition(
     connection,
     new Numberu64(amountToWithdraw),
@@ -302,8 +302,8 @@ export const increasePositionBaseSize = async (
     discountAccount,
     wallet,
     referrerAccount,
-    BNB_ADDRESS
-  );
+    BNB_ADDRESS,
+  )
   const [signersIncrease, instructionIncrease] = await increasePosition(
     connection,
     position.marketAddress,
@@ -315,13 +315,13 @@ export const increasePositionBaseSize = async (
     BNB_ADDRESS,
     discountAccount,
     wallet,
-    referrerAccount
-  );
+    referrerAccount,
+  )
   return [
     [...signersClose, ...signersIncrease],
     [...instructionsClose, ...instructionIncrease],
-  ];
-};
+  ]
+}
 
 /**
  * Increases the collateral of a position. This will decrease the leverage of your position.
@@ -337,9 +337,9 @@ export const increasePositionCollateral = async (
   position: Position,
   wallet: PublicKey,
   collateral: number,
-  referrerAccount: PublicKey | undefined = undefined
+  referrerAccount: PublicKey | undefined = undefined,
 ) => {
-  const discountAccount = await getDiscountAccount(connection, wallet);
+  const discountAccount = await getDiscountAccount(connection, wallet)
   const primedTx = await increasePosition(
     connection,
     position.marketAddress,
@@ -351,10 +351,10 @@ export const increasePositionCollateral = async (
     BNB_ADDRESS,
     discountAccount,
     wallet,
-    referrerAccount
-  );
-  return primedTx;
-};
+    referrerAccount,
+  )
+  return primedTx
+}
 
 /**
  * Reduces the base size of a position. This will decrease the leverage of your position.
@@ -371,9 +371,9 @@ export const reducePositionBaseSize = async (
   position: Position,
   size: number,
   wallet: PublicKey,
-  referrerAccount: PublicKey | undefined = undefined
+  referrerAccount: PublicKey | undefined = undefined,
 ) => {
-  const discountAccount = await getDiscountAccount(connection, wallet);
+  const discountAccount = await getDiscountAccount(connection, wallet)
   const primedTx = await closePosition(
     connection,
     new Numberu64(0),
@@ -385,10 +385,10 @@ export const reducePositionBaseSize = async (
     discountAccount,
     wallet,
     referrerAccount,
-    BNB_ADDRESS
-  );
-  return primedTx;
-};
+    BNB_ADDRESS,
+  )
+  return primedTx
+}
 
 /**
  * Completely close a position.
@@ -403,9 +403,9 @@ export const completeClosePosition = async (
   connection: Connection,
   position: Position,
   wallet: PublicKey,
-  referrerAccount: PublicKey | undefined = undefined
+  referrerAccount: PublicKey | undefined = undefined,
 ) => {
-  const discountAccount = await getDiscountAccount(connection, wallet);
+  const discountAccount = await getDiscountAccount(connection, wallet)
   const primedTx = await closePosition(
     connection,
     new Numberu64(position.collateral),
@@ -417,10 +417,10 @@ export const completeClosePosition = async (
     discountAccount,
     wallet,
     referrerAccount,
-    BNB_ADDRESS
-  );
-  return primedTx;
-};
+    BNB_ADDRESS,
+  )
+  return primedTx
+}
 
 /**
  * Reduces the collateral of a position.
@@ -437,9 +437,9 @@ export const reducePositionCollateral = async (
   position: Position,
   wallet: PublicKey,
   collateral: number,
-  referrerAccount: PublicKey | undefined = undefined
+  referrerAccount: PublicKey | undefined = undefined,
 ) => {
-  const discountAccount = await getDiscountAccount(connection, wallet);
+  const discountAccount = await getDiscountAccount(connection, wallet)
   const primedTx = await closePosition(
     connection,
     new Numberu64(collateral),
@@ -451,10 +451,10 @@ export const reducePositionCollateral = async (
     discountAccount,
     wallet,
     referrerAccount,
-    BNB_ADDRESS
-  );
-  return primedTx;
-};
+    BNB_ADDRESS,
+  )
+  return primedTx
+}
 
 /**
  * Get all the user positions for a given market.
@@ -465,21 +465,21 @@ export const reducePositionCollateral = async (
  */
 export const getOpenPositions = async (
   connection: Connection,
-  wallet: PublicKey
+  wallet: PublicKey,
 ) => {
-  let positions: Position[] = [];
-  const _positions = await getOrders(connection, wallet);
+  let positions: Position[] = []
+  const _positions = await getOrders(connection, wallet)
   for (let pos of _positions) {
     const markPrice = await (
       await getMarketState(connection, pos.market)
-    ).getMarkPrice();
-    const entryPrice = pos.position.vPcAmount / pos.position.vCoinAmount;
+    ).getMarkPrice()
+    const entryPrice = pos.position.vPcAmount / pos.position.vCoinAmount
     const leverage = Math.floor(
-      pos.position.vPcAmount / pos.position.collateral
-    );
-    const size = pos.position.vCoinAmount;
+      pos.position.vPcAmount / pos.position.collateral,
+    )
+    const size = pos.position.vCoinAmount
     const position = {
-      side: pos.position.side === 1 ? "long" : "short",
+      side: pos.position.side === 1 ? 'long' : 'short',
       size: size,
       pnl:
         pos.position.side === 1
@@ -494,27 +494,26 @@ export const getOpenPositions = async (
       positionIndex: pos.position_index,
       vCoinAmount: pos.position.vCoinAmount,
       instanceIndex: pos.position.instanceIndex,
-    };
-    positions.push(position);
+    }
+    positions.push(position)
   }
-  return positions;
-};
+  return positions
+}
 
 /**
  * Get all the information of a trade from its tx.
  *
  * @param connection The solana connection object to the RPC node.
- * @param wallet The wallet to credit the USDC to.
- * @param marketAddress The address of the market.
+ * @param tx The tx of the trade
  * @returns A PastTrade object.
  */
 export const getTradeInfoFromTx = async (
   connection: Connection,
-  tx: string
+  tx: string,
 ) => {
-  const tradeInfo = await extractTradeInfoFromTransaction(connection, tx);
-  return tradeInfo;
-};
+  const tradeInfo = await extractTradeInfoFromTransaction(connection, tx)
+  return tradeInfo
+}
 
 /**
  * Get recent market trades.
@@ -527,13 +526,13 @@ export const getTradeInfoFromTx = async (
 export const getMarketTrades = async (
   connection: Connection,
   marketAddress: PublicKey,
-  limit = 100
+  limit = 100,
 ) => {
   const pastTrades = await getPastTrades(connection, marketAddress, {
     limit: limit,
-  });
-  return pastTrades;
-};
+  })
+  return pastTrades
+}
 
 /**
  * Get current mark price.
@@ -544,10 +543,10 @@ export const getMarketTrades = async (
  */
 export const getMarkPrice = async (
   connection: Connection,
-  marketAddress: PublicKey
+  marketAddress: PublicKey,
 ) => {
   const markPrice = await (
     await getMarketState(connection, marketAddress)
-  ).getMarkPrice();
-  return markPrice;
-};
+  ).getMarkPrice()
+  return markPrice
+}
